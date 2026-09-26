@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>24 点游戏</title>
+<style>
+  :root {
+    --bg1: #1e1b4b;
+    --bg2: #312e81;
+    --bg3: #4c1d95;
+    --card-bg1: #ffffff;
+    --card-bg2: #eef0ff;
+    --ink: #3730a3;
+    --gold: #fbbf24;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    min-height: 100dvh;
+    font-family: "Outfit", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    background: linear-gradient(165deg, var(--bg1), var(--bg2) 55%, var(--bg3));
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    position: relative;
+  }
+
+  /* 装饰性背景光斑 */
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: .5;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before { width: 320px; height: 320px; background: #7c3aed; top: -80px; left: -80px; }
+  body::after { width: 300px; height: 300px; background: #db2777; bottom: -90px; right: -70px; }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    padding: 22px 18px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .header { text-align: center; }
+  .header h1 {
+    font-size: 40px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, #fde68a, #fbbf24, #fb923c);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .sub { margin-top: 2px; font-size: 13px; color: #c7d2fe; letter-spacing: .5px; }
+
+  /* ===== Tab 切换 ===== */
+  .tabs {
+    position: relative;
+    display: flex;
+    gap: 5px;
+    padding: 5px;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+  }
+  .tab-indicator {
+    position: absolute;
+    top: 5px; bottom: 5px; left: 5px;
+    width: 50%;
+    border-radius: 12px;
+    background: linear-gradient(160deg, #f59e0b, #ea580c);
+    box-shadow: 0 5px 14px rgba(234, 88, 12, .45);
+    transition: left .32s cubic-bezier(.22, .9, .32, 1.2), width .32s cubic-bezier(.22, .9, .32, 1.2);
+    z-index: 0;
+  }
+  .tab {
+    flex: 1;
+    position: relative;
+    z-index: 1;
+    border: none;
+    background: none;
+    color: #cbd5e1;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 12px 0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: color .25s;
+  }
+  .tab.active { color: #fff; }
+
+  /* ===== 面板 ===== */
+  .panels { position: relative; }
+  .panel { display: none; }
+  .panel.active { display: block; animation: panelIn .35s ease; }
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ===== 出题模式 ===== */
+  .target {
+    text-align: center;
+    margin-bottom: 14px;
+    font-size: 15px;
+    color: #c7d2fe;
+  }
+  .target b {
+    font-size: 20px;
+    color: #fde68a;
+    margin-left: 4px;
+  }
+
+  .cards {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    min-height: 128px;
+    padding: 8px 0;
+  }
+
+  .card {
+    position: relative;
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(180deg, var(--card-bg1), var(--card-bg2));
+    color: var(--ink);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .28);
+    aspect-ratio: 3 / 4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    padding: 6px;
+    transition: box-shadow .2s ease, background .2s ease;
+  }
+  .cards[data-count="4"] .card { width: 20vw; max-width: 88px; min-width: 64px; }
+  .cards[data-count="3"] .card { width: 24vw; max-width: 104px; min-width: 76px; }
+  .cards[data-count="2"] .card { width: 30vw; max-width: 128px; min-width: 92px; }
+  .cards[data-count="1"] .card { width: 40vw; max-width: 168px; min-width: 120px; }
+
+  .card .num { font-size: clamp(24px, 7vw, 34px); font-weight: 800; line-height: 1; }
+  .card .expr {
+    margin-top: 6px;
+    font-size: 10px;
+    line-height: 1.25;
+    color: #8b8fa8;
+    word-break: break-all;
+    text-align: center;
+    max-width: 100%;
+  }
+  .card.focus { outline: 3px solid rgba(34, 211, 238, .9); outline-offset: 2px; }
+  .card.selected {
+    box-shadow: 0 0 0 3px var(--gold), 0 10px 24px rgba(0, 0, 0, .4);
+    background: linear-gradient(180deg, #fffbea, #ffedc2);
+  }
+
+  @keyframes popIn {
+    0%   { transform: scale(.4); opacity: 0; }
+    70%  { transform: scale(1.06); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .pop { animation: popIn .45s cubic-bezier(.22, .9, .32, 1.25) both; }
+
+  .ops {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .op {
+    width: 62px;
+    height: 62px;
+    border: none;
+    border-radius: 50%;
+    font-size: 30px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, .3);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .op:active { transform: scale(.92); }
+  .op-plus { background: linear-gradient(160deg, #34d399, #059669); }
+  .op-minus { background: linear-gradient(160deg, #60a5fa, #2563eb); }
+  .op-mul { background: linear-gradient(160deg, #fb923c, #ea580c); }
+  .op-div { background: linear-gradient(160deg, #c084fc, #7c3aed); }
+  .op.selected {
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, .9), 0 8px 18px rgba(0, 0, 0, .45);
+    transform: scale(1.08);
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .actions .btn { flex: 1; }
+
+  .btn {
+    border: none;
+    border-radius: 14px;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+    letter-spacing: 1px;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-primary { background: linear-gradient(160deg, #f59e0b, #ea580c); box-shadow: 0 6px 16px rgba(234, 88, 12, .4); }
+  .btn-ghost { background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .25); }
+
+  .hint { text-align: center; font-size: 12px; color: #a5b4fc; margin-top: 8px; }
+
+  /* ===== 解题模式 ===== */
+  .solve-card {
+    background: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 22px;
+    padding: 24px 18px 18px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, .2);
+  }
+  .panel[data-panel="solve"] .label {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: #e0e7ff;
+    margin-bottom: 22px;
+    letter-spacing: .5px;
+  }
+  .inputs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .num-input {
+    flex: 1 1 0;
+    max-width: 78px;
+    height: 76px;
+    text-align: center;
+    font-size: 32px;
+    font-weight: 800;
+    color: #fff;
+    border-radius: 18px;
+    border: 2px solid rgba(255, 255, 255, .18);
+    background: rgba(255, 255, 255, .08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+    outline: none;
+    caret-color: var(--gold);
+    transition: border-color .2s, background .2s, box-shadow .2s, transform .15s;
+  }
+  .num-input:focus {
+    border-color: var(--gold);
+    background: rgba(255, 255, 255, .14);
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, .22), 0 10px 24px rgba(0, 0, 0, .28);
+    transform: translateY(-2px);
+  }
+  .num-input::placeholder { color: rgba(255, 255, 255, .28); font-weight: 600; }
+  .num-input::-webkit-outer-spin-button,
+  .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .num-input[type=number] { -moz-appearance: textfield; }
+
+  .solve-btns { display: flex; gap: 12px; }
+  .solve-btns .btn { flex: 1; }
+  .solve-card .hint { margin-top: 14px; }
+
+  .solution { margin-top: 18px; text-align: center; }
+  .sol-main {
+    display: inline-block;
+    padding: 12px 20px;
+    background: linear-gradient(160deg, rgba(251, 191, 36, .16), rgba(234, 88, 12, .16));
+    border: 1px solid rgba(251, 191, 36, .35);
+    border-radius: 16px;
+    font-size: clamp(17px, 5vw, 22px);
+    font-weight: 800;
+    color: #fde68a;
+    word-break: break-all;
+    line-height: 1.4;
+    animation: solIn .45s ease;
+  }
+  .sol-main.no-sol {
+    background: rgba(253, 164, 175, .12);
+    border-color: rgba(253, 164, 175, .35);
+    color: #fda4af;
+  }
+  @keyframes solIn {
+    from { opacity: 0; transform: translateY(8px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+  }
+  .sol-count { margin-top: 10px; font-size: 13px; color: #c7d2fe; }
+  .sol-list {
+    list-style: none;
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .25) transparent;
+  }
+  .sol-list::-webkit-scrollbar { width: 6px; }
+  .sol-list::-webkit-scrollbar-track { background: transparent; }
+  .sol-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .2);
+    border-radius: 999px;
+  }
+  .sol-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .35); }
+  .sol-list li {
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #e0e7ff;
+    word-break: break-all;
+    text-align: left;
+  }
+  .dim { color: #a5b4fc; font-size: 13px; line-height: 1.6; }
+
+  /* ===== 弹窗 ===== */
+  .modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 8, 30, .55);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease;
+    padding: 24px;
+  }
+  .modal.show { opacity: 1; pointer-events: auto; }
+  .modal-box {
+    width: 100%;
+    max-width: 360px;
+    background: linear-gradient(170deg, #2a2760, #1e1b4b);
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 20px;
+    padding: 26px 22px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+    transform: scale(.9) translateY(10px);
+    transition: transform .28s cubic-bezier(.22, .9, .32, 1.2);
+  }
+  .modal.show .modal-box { transform: none; }
+  .modal-box h2 { font-size: 22px; margin-bottom: 12px; }
+  .modal-body { margin-bottom: 20px; }
+  .win-expr {
+    font-size: clamp(18px, 5.4vw, 24px);
+    font-weight: 800;
+    color: #fde68a;
+    word-break: break-all;
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+  .modal-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .modal-btns .btn { flex: 1 1 auto; min-width: 110px; }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 34px;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(15, 15, 40, .9);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 999px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+    z-index: 200;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== 彩带 ===== */
+  .confetti {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 150;
+  }
+  .confetti i {
+    position: absolute;
+    top: -24px;
+    display: block;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  @media (max-width: 360px) {
+    .ops { gap: 12px; }
+    .op { width: 56px; height: 56px; font-size: 26px; }
+    .num-input { height: 64px; font-size: 26px; }
+    .header h1 { font-size: 34px; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>24 点</h1>
+      <p class="sub">4 个数字 · + − × ÷ · 凑出 24</p>
+    </header>
+
+    <!-- Tab 切换 -->
+    <nav class="tabs" id="tabs">
+      <div class="tab-indicator" id="tab-indicator"></div>
+      <button class="tab active" data-mode="game">出题模式</button>
+      <button class="tab" data-mode="solve">解题模式</button>
+    </nav>
+
+    <div class="panels">
+      <!-- 出题模式 -->
+      <section class="panel active" data-panel="game">
+        <div class="target">目标：<b>24</b></div>
+        <div class="cards" id="cards" data-count="4"></div>
+        <div class="ops">
+          <button class="op op-plus" data-op="+">+</button>
+          <button class="op op-minus" data-op="-">−</button>
+          <button class="op op-mul" data-op="*">×</button>
+          <button class="op op-div" data-op="/">÷</button>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost" id="undoBtn">撤销</button>
+          <button class="btn btn-ghost" id="surrenderBtn">投降</button>
+        </div>
+        <p class="hint">键盘：←→ 选卡 · 运算符选中第一张 · 回车合成 · Esc 取消 · ↑↓ 切模式</p>
+      </section>
+
+      <!-- 解题模式 -->
+      <section class="panel" data-panel="solve">
+        <div class="solve-card">
+          <p class="label">输入 4 个 1~10 的数字，帮你凑出 24</p>
+          <div class="inputs">
+            <input class="num-input" type="text" inputmode="numeric" maxlength="2" placeholder="?">
+            <input class="num-input" type="text" inputmode="numeric" maxlength="2" placeholder="?">
+            <input class="num-input" type="text" inputmode="numeric" maxlength="2" placeholder="?">
+            <input class="num-input" type="text" inputmode="numeric" maxlength="2" placeholder="?">
+          </div>
+          <div class="solve-btns">
+            <button class="btn btn-primary" id="solveBtn">求解</button>
+          </div>
+          <p class="hint">无焦点时直接按数字自动填入 · ←→ 跳格 · 回车求解</p>
+        </div>
+        <div class="solution" id="solution"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal" id="modal"></div>
+  <div class="toast" id="toast"></div>
+  <div class="confetti" id="confetti"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var EPS = 1e-6;
+
+  function el(id) { return document.getElementById(id); }
+
+  // ================= 求解器 =================
+
+  function prec(op) {
+    if (op === "+" || op === "-") return 1;
+    if (op === "*" || op === "/") return 2;
+    return 3; // 数字叶子
+  }
+
+  // 拼接两个表达式，按优先级决定是否加括号
+  function combineExpr(A, B, op) {
+    var as = A.str, bs = B.str;
+    if (A.op && prec(A.op) < prec(op)) as = "(" + as + ")";
+    if (B.op && (prec(B.op) < prec(op) || (prec(B.op) === prec(op) && (op === "-" || op === "/")))) {
+      bs = "(" + bs + ")";
+    }
+    return as + op + bs;
+  }
+
+  // 构造节点：str 给人看，key 用于去重
+  function makeNode(A, B, op) {
+    var str = combineExpr(A, B, op);
+    var l = A.key, r = B.key, key;
+    if (op === "+" || op === "*") {
+      if (l > r) { var t = l; l = r; r = t; }
+      key = l + op + r;
+    } else {
+      key = "(" + l + op + r + ")";
+    }
+    return { str: str, key: key, op: op };
+  }
+
+  // 返回所有不同解法的表达式字符串（按长度从短到长排序）
+  function solve24(nums) {
+    var seen = {};
+    var out = [];
+
+    function dfs(vals, nodes) {
+      if (vals.length === 1) {
+        if (Math.abs(vals[0] - 24) < EPS) {
+          var key = nodes[0].key;
+          if (!seen[key]) { seen[key] = true; out.push(nodes[0].str); }
+        }
+        return;
+      }
+      for (var i = 0; i < vals.length; i++) {
+        for (var j = 0; j < vals.length; j++) {
+          if (i === j) continue;
+          var a = vals[i], b = vals[j], A = nodes[i], B = nodes[j];
+          var rv = [], rn = [];
+          for (var k = 0; k < vals.length; k++) {
+            if (k !== i && k !== j) { rv.push(vals[k]); rn.push(nodes[k]); }
+          }
+          var cands = [
+            { v: a + b, op: "+" },
+            { v: a - b, op: "-" },
+            { v: a * b, op: "*" }
+          ];
+          if (Math.abs(b) > EPS) cands.push({ v: a / b, op: "/" });
+          for (var m = 0; m < cands.length; m++) {
+            dfs(rv.concat(cands[m].v), rn.concat(makeNode(A, B, cands[m].op)));
+          }
+        }
+      }
+    }
+
+    var initial = nums.map(function (n) { return { str: String(n), key: String(n), op: "" }; });
+    dfs(nums, initial);
+    out.sort(function (x, y) { return x.length - y.length; });
+    return out;
+  }
+
+  function toDisplay(s) { return s.replace(/\*/g, "×").replace(/\//g, "÷"); }
+
+  function generateProblem() {
+    var nums;
+    var guard = 0;
+    do {
+      nums = [0, 0, 0, 0].map(function () { return 1 + Math.floor(Math.random() * 10); });
+    } while (solve24(nums).length === 0 && ++guard < 2000);
+    return nums;
+  }
+
+  // ================= 出题模式状态 =================
+
+  var idSeq = 0;
+  function nextId() { return "c" + (++idSeq); }
+
+  var state = { cards: [], selectedCardId: null, selectedOp: null };
+  var historyStack = [];
+  var initialNums = [];
+  var animating = false;
+  var focusIndex = -1;
+
+  // ================= 音效（Web Audio 合成，无需音频文件） =================
+  var audioCtx = null;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  function tone(freq, when, dur, type, vol) {
+    if (!audioCtx) return;
+    var t0 = audioCtx.currentTime + (when || 0);
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = type || "sine";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.03);
+  }
+
+  function playTap() { ensureAudio(); tone(760, 0, 0.06, "triangle", 0.16); }
+  function playOp() { ensureAudio(); tone(560, 0, 0.07, "square", 0.12); }
+  function playMerge() { ensureAudio(); tone(440, 0, 0.09, "triangle", 0.2); tone(660, 0.04, 0.09, "triangle", 0.16); }
+  function playUndo() { ensureAudio(); tone(380, 0, 0.09, "triangle", 0.18); }
+
+  function playWin() {
+    ensureAudio();
+    var notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach(function (f, i) { tone(f, i * 0.11, 0.32, "triangle", 0.22); });
+    notes.forEach(function (f) { tone(f, 0.48, 0.6, "sine", 0.12); });
+  }
+
+  function playSurrender() {
+    ensureAudio();
+    tone(523.25, 0, 0.2, "sine", 0.18);
+    tone(392.0, 0.16, 0.32, "sine", 0.18);
+  }
+
+  function cloneCards(cards) { return cards.map(function (c) { return { id: c.id, str: c.str, op: c.op, frac: { n: c.frac.n, d: c.frac.d } }; }); }
+
+  function gcd(a, b) {
+    a = Math.abs(a); b = Math.abs(b);
+    while (b) { var t = a % b; a = b; b = t; }
+    return a || 1;
+  }
+
+  function normalizeFrac(n, d) {
+    if (d < 0) { n = -n; d = -d; }
+    var g = gcd(n, d);
+    return { n: n / g, d: d / g };
+  }
+
+  function combineFrac(a, b, op) {
+    var n, d;
+    if (op === "+") { n = a.n * b.d + b.n * a.d; d = a.d * b.d; }
+    else if (op === "-") { n = a.n * b.d - b.n * a.d; d = a.d * b.d; }
+    else if (op === "*") { n = a.n * b.n; d = a.d * b.d; }
+    else if (op === "/") {
+      if (b.n === 0) return null;
+      n = a.n * b.d; d = a.d * b.n;
+    }
+    return normalizeFrac(n, d);
+  }
+
+  function formatFrac(f) {
+    if (f.d === 1) return String(f.n);
+    return f.n + "/" + f.d;
+  }
+
+  function cardById(id) {
+    for (var i = 0; i < state.cards.length; i++) if (state.cards[i].id === id) return state.cards[i];
+    return null;
+  }
+
+  function cardEl(id) { return el("cards").querySelector('[data-id="' + id + '"]'); }
+
+  // 核心渲染：带 FLIP 动画
+  function renderCards(mergeFrom) {
+    var container = el("cards");
+    var prev = {};
+    var oldEls = container.querySelectorAll(".card");
+    for (var i = 0; i < oldEls.length; i++) prev[oldEls[i].dataset.id] = oldEls[i].getBoundingClientRect();
+
+    if (focusIndex >= state.cards.length) focusIndex = Math.max(0, state.cards.length - 1);
+    container.innerHTML = "";
+    container.dataset.count = state.cards.length;
+
+    state.cards.forEach(function (c, i) {
+      var card = document.createElement("button");
+      card.className = "card" + (c.id === state.selectedCardId ? " selected" : "") + (i === focusIndex ? " focus" : "");
+      card.dataset.id = c.id;
+
+      var num = document.createElement("span");
+      num.className = "num";
+      num.textContent = formatFrac(c.frac);
+      card.appendChild(num);
+
+      if (c.op) {
+        var ex = document.createElement("span");
+        ex.className = "expr";
+        ex.textContent = "= " + toDisplay(c.str);
+        card.appendChild(ex);
+      }
+
+      card.addEventListener("click", function () { onCardClick(c.id); });
+      container.appendChild(card);
+    });
+
+    requestAnimationFrame(function () {
+      var cards = container.querySelectorAll(".card");
+      cards.forEach(function (card, idx) {
+        var old = prev[card.dataset.id];
+        var now = card.getBoundingClientRect();
+        if (old) {
+          var dx = old.left - now.left, dy = old.top - now.top;
+          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            card.style.transition = "none";
+            card.style.transform = "translate(" + dx + "px," + dy + "px)";
+            card.getBoundingClientRect();
+            card.style.transition = "transform .4s cubic-bezier(.22,.9,.32,1.2)";
+            card.style.transform = "";
+          }
+        } else if (mergeFrom) {
+          var mx = mergeFrom.midX - (now.left + now.width / 2);
+          var my = mergeFrom.midY - (now.top + now.height / 2);
+          card.style.transition = "none";
+          card.style.transform = "translate(" + mx + "px," + my + "px) scale(.3)";
+          card.style.opacity = "0";
+          card.getBoundingClientRect();
+          card.style.transition = "transform .45s cubic-bezier(.22,.9,.32,1.18), opacity .35s ease";
+          card.style.transform = "";
+          card.style.opacity = "";
+        } else {
+          card.classList.add("pop");
+          card.style.animationDelay = (idx * 55) + "ms";
+        }
+      });
+
+      setTimeout(function () {
+        container.querySelectorAll(".card").forEach(function (card) {
+          card.style.transform = "";
+          card.style.transition = "";
+          card.style.opacity = "";
+          card.classList.remove("pop");
+        });
+      }, 700);
+    });
+  }
+
+  function syncOps() {
+    document.querySelectorAll(".op").forEach(function (b) {
+      b.classList.toggle("selected", b.dataset.op === state.selectedOp);
+    });
+  }
+
+  function syncFocus() {
+    el("cards").querySelectorAll(".card").forEach(function (card, i) {
+      card.classList.toggle("focus", i === focusIndex);
+    });
+  }
+
+  function syncSelected() {
+    el("cards").querySelectorAll(".card").forEach(function (card) {
+      card.classList.toggle("selected", card.dataset.id === state.selectedCardId);
+    });
+  }
+
+  function moveFocus(dir) {
+    if (!state.cards.length) return;
+    if (focusIndex < 0) {
+      focusIndex = dir > 0 ? 0 : state.cards.length - 1;
+    } else {
+      focusIndex = (focusIndex + dir + state.cards.length) % state.cards.length;
+    }
+    syncFocus();
+  }
+
+  function confirmFocus() {
+    if (focusIndex < 0) { focusIndex = 0; syncFocus(); }
+    var c = state.cards[focusIndex];
+    if (c) onCardClick(c.id);
+  }
+
+  function onCardClick(id) {
+    if (animating) return;
+    if (state.selectedCardId === id) {
+      state.selectedCardId = null;
+      playTap();
+      renderCards();
+      return;
+    }
+    if (state.selectedCardId !== null && state.selectedOp) {
+      doMerge(state.selectedCardId, id, state.selectedOp);
+      return;
+    }
+    state.selectedCardId = id;
+    playTap();
+    renderCards();
+  }
+
+  function onOpClick(op) {
+    if (animating) return;
+    state.selectedOp = state.selectedOp === op ? null : op;
+    playOp();
+    syncOps();
+  }
+
+  function doMerge(aId, bId, op) {
+    if (animating) return;
+    var aEl = cardEl(aId), bEl = cardEl(bId);
+    var a = cardById(aId), b = cardById(bId);
+    var frac = combineFrac(a.frac, b.frac, op);
+    if (frac === null) {
+      toast("不能除以 0");
+      state.selectedOp = null;
+      syncOps();
+      return;
+    }
+    playMerge();
+
+    var ra = aEl.getBoundingClientRect(), rb = bEl.getBoundingClientRect();
+    var midX = (ra.left + ra.right + rb.left + rb.right) / 4;
+    var midY = (ra.top + ra.bottom + rb.top + rb.bottom) / 4;
+
+    animating = true;
+    [aEl, bEl].forEach(function (elm) {
+      elm.style.transition = "transform .15s cubic-bezier(.5,0,.7,.4), opacity .15s ease";
+      elm.style.transform = "scale(.1)";
+      elm.style.opacity = "0";
+    });
+
+    setTimeout(function () {
+      historyStack.push(cloneCards(state.cards));
+      var str = combineExpr(a, b, op);
+      var newCard = { id: nextId(), str: str, op: op, frac: frac };
+      var iA = state.cards.indexOf(a), iB = state.cards.indexOf(b);
+      var minIdx = Math.min(iA, iB);
+      state.cards = state.cards.filter(function (c) { return c.id !== aId && c.id !== bId; });
+      state.cards.splice(minIdx, 0, newCard);
+      if (focusIndex >= 0) focusIndex = minIdx;
+      state.selectedCardId = null;
+      state.selectedOp = null;
+      syncOps();
+      renderCards({ midX: midX, midY: midY });
+      animating = false;
+      checkWin();
+    }, 150);
+  }
+
+  function undo() {
+    if (animating) return;
+    if (!historyStack.length) { toast("没有可以撤销的步骤"); return; }
+    playUndo();
+    state.cards = historyStack.pop();
+    state.selectedCardId = null;
+    state.selectedOp = null;
+    syncOps();
+    renderCards();
+  }
+
+  function checkWin() {
+    if (state.cards.length !== 1) return;
+    var card = state.cards[0];
+    setTimeout(function () {
+      if (card.frac.n === 24 && card.frac.d === 1) showWin(card.str);
+      else showStuck(card.frac);
+    }, 450);
+  }
+
+  function newGame() {
+    var nums = generateProblem();
+    initialNums = nums.slice();
+    state.cards = nums.map(function (n) { return { id: nextId(), str: String(n), op: "", frac: { n: n, d: 1 } }; });
+    state.selectedCardId = null;
+    state.selectedOp = null;
+    historyStack = [];
+    focusIndex = -1;
+    syncOps();
+    renderCards();
+  }
+
+  // ================= 弹窗 / 提示 / 彩带 =================
+
+  var toastTimer = null;
+  function toast(msg) {
+    var t = el("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1800);
+  }
+
+  function showModal(opts) {
+    var overlay = el("modal");
+    overlay.innerHTML = "";
+    var box = document.createElement("div");
+    box.className = "modal-box";
+
+    var h = document.createElement("h2");
+    h.textContent = opts.title;
+    box.appendChild(h);
+
+    var body = document.createElement("div");
+    body.className = "modal-body";
+    body.innerHTML = opts.html;
+    box.appendChild(body);
+
+    var row = document.createElement("div");
+    row.className = "modal-btns";
+    opts.buttons.forEach(function (b) {
+      var btn = document.createElement("button");
+      btn.className = "btn " + (b.class || "btn-ghost");
+      btn.textContent = b.label;
+      btn.addEventListener("click", function () {
+        closeModal();
+        if (b.onClick) b.onClick();
+      });
+      row.appendChild(btn);
+    });
+    box.appendChild(row);
+
+    overlay.appendChild(box);
+    overlay.classList.add("show");
+  }
+
+  function closeModal() {
+    var overlay = el("modal");
+    overlay.classList.remove("show");
+    setTimeout(function () { overlay.innerHTML = ""; }, 260);
+  }
+
+  function showWin(expr) {
+    playWin();
+    confetti();
+    showModal({
+      title: "🎉 通关！",
+      html: '<div class="win-expr">' + toDisplay(expr) + ' = 24</div><p class="dim">太棒了，你凑出了 24！</p>',
+      buttons: [{ label: "再来一题", class: "btn-primary", onClick: newGame }]
+    });
+  }
+
+  function showStuck(frac) {
+    showModal({
+      title: "差一点点",
+      html: '<p class="dim">当前结果是 <b style="color:#fde68a">' + formatFrac(frac) + '</b>，不是 24。</p>',
+      buttons: [
+        { label: "撤销", onClick: undo },
+        { label: "投降看答案", onClick: surrender },
+        { label: "重新开始", class: "btn-primary", onClick: newGame }
+      ]
+    });
+  }
+
+  function surrender() {
+    playSurrender();
+    var sols = solve24(initialNums);
+    var html;
+    if (!sols.length) {
+      html = '<p class="dim">这组数字居然无解，点「再来一题」换一题。</p>';
+    } else {
+      html = '<div class="win-expr">' + toDisplay(sols[0]) + ' = 24</div>' +
+        (sols.length > 1 ? '<p class="dim">共找到 ' + sols.length + ' 种解法</p>' : "");
+    }
+    showModal({
+      title: "参考答案",
+      html: html,
+      buttons: [{ label: "再来一题", class: "btn-primary", onClick: newGame }]
+    });
+  }
+
+  function confetti() {
+    var c = el("confetti");
+    c.innerHTML = "";
+    var colors = ["#f43f5e", "#f59e0b", "#10b981", "#3b82f6", "#a855f7", "#facc15", "#ec4899"];
+    for (var i = 0; i < 60; i++) {
+      var p = document.createElement("i");
+      p.style.left = (Math.random() * 100) + "%";
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = (Math.random() * 0.6) + "s";
+      p.style.animationDuration = (2 + Math.random() * 1.5) + "s";
+      p.style.width = (6 + Math.random() * 6) + "px";
+      p.style.height = (10 + Math.random() * 8) + "px";
+      p.style.borderRadius = Math.random() > 0.5 ? "50%" : "2px";
+      c.appendChild(p);
+    }
+    setTimeout(function () { c.innerHTML = ""; }, 3500);
+  }
+
+  // ================= 解题模式 =================
+
+  function readInputs() {
+    var inputs = document.querySelectorAll(".num-input");
+    var nums = [];
+    for (var i = 0; i < inputs.length; i++) {
+      var v = parseInt(inputs[i].value, 10);
+      if (isNaN(v) || v < 1 || v > 10) return null;
+      nums.push(v);
+    }
+    return nums;
+  }
+
+  function solve() {
+    playTap();
+    var sol = el("solution");
+    var nums = readInputs();
+    if (!nums) {
+      sol.innerHTML = '<p class="dim">请输入 1~10 的整数（4 个数字都要填）。</p>';
+      return;
+    }
+    var sols = solve24(nums);
+    if (!sols.length) {
+      sol.innerHTML = '<div class="sol-main no-sol">无解</div><p class="dim">这 4 个数字无法通过 + − × ÷ 得到 24。</p>';
+      return;
+    }
+    var rest = sols.slice(1, 9);
+    var html = '<div class="sol-main">' + toDisplay(sols[0]) + ' = 24</div>';
+    html += '<div class="sol-count">共 ' + sols.length + ' 种解法</div>';
+    if (rest.length) {
+      html += '<ul class="sol-list">' +
+        rest.map(function (s) { return "<li>" + toDisplay(s) + " = 24</li>"; }).join("") +
+        "</ul>";
+    }
+    sol.innerHTML = html;
+  }
+
+  // ================= Tab 切换 =================
+
+  function moveIndicator() {
+    var active = document.querySelector(".tab.active");
+    var ind = el("tab-indicator");
+    if (active) {
+      ind.style.left = active.offsetLeft + "px";
+      ind.style.width = active.offsetWidth + "px";
+    }
+  }
+
+  function switchTab(mode) {
+    playTap();
+    document.querySelectorAll(".tab").forEach(function (t) {
+      t.classList.toggle("active", t.dataset.mode === mode);
+    });
+    document.querySelectorAll(".panel").forEach(function (p) {
+      p.classList.toggle("active", p.dataset.panel === mode);
+    });
+    moveIndicator();
+  }
+
+  // ================= 事件绑定与初始化 =================
+
+  document.querySelectorAll(".tab").forEach(function (t) {
+    t.addEventListener("click", function () { switchTab(t.dataset.mode); });
+  });
+
+  document.querySelectorAll(".op").forEach(function (b) {
+    b.addEventListener("click", function () { onOpClick(b.dataset.op); });
+  });
+
+  el("undoBtn").addEventListener("click", undo);
+  el("surrenderBtn").addEventListener("click", surrender);
+  el("solveBtn").addEventListener("click", solve);
+
+  // 全局键盘操作
+  document.addEventListener("keydown", function (e) {
+    var k = e.key;
+    if (el("modal").classList.contains("show")) return;
+    var active = document.activeElement;
+    var typing = active && active.classList && active.classList.contains("num-input");
+
+    // 上下键切换 tab（输入框内除外）
+    if (k === "ArrowUp" || k === "ArrowDown") {
+      if (typing) return;
+      e.preventDefault();
+      var modes = ["game", "solve"];
+      var cur = document.querySelector(".tab.active").dataset.mode;
+      var idx = modes.indexOf(cur);
+      switchTab(modes[(idx + (k === "ArrowDown" ? 1 : -1) + modes.length) % modes.length]);
+      return;
+    }
+
+    var mode = document.querySelector(".tab.active").dataset.mode;
+
+    // 解题模式：无焦点时，数字自动填入第一个空，回车求解
+    if (mode === "solve") {
+      if (typing) return;
+      if (k === "Enter") { e.preventDefault(); solve(); return; }
+      if (/^[0-9]$/.test(k)) {
+        e.preventDefault();
+        var inputs = document.querySelectorAll(".num-input");
+        for (var i = 0; i < inputs.length; i++) {
+          if (!inputs[i].value) {
+            inputs[i].value = k;
+            suppressSelect = true;
+            inputs[i].focus();
+            suppressSelect = false;
+            try { inputs[i].setSelectionRange(k.length, k.length); } catch (err) {}
+            return;
+          }
+        }
+      }
+      return;
+    }
+
+    // 出题模式
+    if (k === "ArrowLeft" || k === "ArrowRight") {
+      e.preventDefault();
+      moveFocus(k === "ArrowRight" ? 1 : -1);
+    } else if (k === "Enter") {
+      e.preventDefault();
+      confirmFocus();
+    } else if (k === "Escape") {
+      e.preventDefault();
+      state.selectedCardId = null;
+      state.selectedOp = null;
+      syncSelected();
+      syncOps();
+    } else if (k === "+" || k === "-" || k === "*" || k === "/") {
+      e.preventDefault();
+      if (focusIndex < 0) { focusIndex = 0; syncFocus(); }
+      if (state.selectedCardId === null && state.cards[focusIndex]) {
+        state.selectedCardId = state.cards[focusIndex].id;
+        syncSelected();
+      }
+      onOpClick(k);
+    }
+  });
+
+  var suppressSelect = false;
+  var numInputs = document.querySelectorAll(".num-input");
+  numInputs.forEach(function (inp, idx) {
+    inp.addEventListener("focus", function () { if (!suppressSelect) this.select(); });
+    inp.addEventListener("input", function () {
+      this.value = this.value.replace(/\D/g, "").slice(0, 2);
+    });
+    inp.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { solve(); return; }
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        var step = e.key === "ArrowRight" ? 1 : -1;
+        var next = (idx + step + numInputs.length) % numInputs.length;
+        numInputs[next].focus();
+      }
+    });
+  });
+
+  window.addEventListener("resize", moveIndicator);
+  window.addEventListener("load", moveIndicator);
+
+  newGame();
+  setTimeout(moveIndicator, 50);
+})();
+</script>
+</body>
+</html>
