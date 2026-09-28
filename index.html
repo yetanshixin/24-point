@@ -116,16 +116,48 @@
   }
 
   /* ===== 出题模式 ===== */
-  .target {
-    text-align: center;
+  .game-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 14px;
+    padding: 0 4px;
+  }
+  .target {
     font-size: 15px;
     color: #c7d2fe;
   }
   .target b {
     font-size: 20px;
     color: #fde68a;
-    margin-left: 4px;
+    margin-left: 6px;
+  }
+  .win-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: linear-gradient(160deg, rgba(251, 191, 36, .16), rgba(234, 88, 12, .16));
+    border: 1px solid rgba(251, 191, 36, .35);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fde68a;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
+  }
+  .win-badge .trophy { font-size: 16px; line-height: 1; }
+  .win-badge b {
+    font-size: 16px;
+    color: #fff;
+    display: inline-block;
+    min-width: 12px;
+    text-align: center;
+  }
+  .win-badge b.bump { animation: bump .5s cubic-bezier(.22, .9, .32, 1.4); }
+  @keyframes bump {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.7); }
+    100% { transform: scale(1); }
   }
 
   .cards {
@@ -161,15 +193,29 @@
   .cards[data-count="2"] .card { width: 30vw; max-width: 128px; min-width: 92px; }
   .cards[data-count="1"] .card { width: 40vw; max-width: 168px; min-width: 120px; }
 
-  .card .num { font-size: clamp(24px, 7vw, 34px); font-weight: 800; line-height: 1; }
+  .card .num {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    text-align: center;
+    font-size: clamp(24px, 7vw, 34px);
+    font-weight: 800;
+    line-height: 1;
+  }
   .card .expr {
-    margin-top: 6px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 8px;
     font-size: 10px;
     line-height: 1.25;
     color: #8b8fa8;
     word-break: break-all;
     text-align: center;
     max-width: 100%;
+    padding: 0 4px;
   }
   .card.focus { outline: 3px solid rgba(34, 211, 238, .9); outline-offset: 2px; }
   .card.selected {
@@ -449,7 +495,10 @@
     <div class="panels">
       <!-- 出题模式 -->
       <section class="panel active" data-panel="game">
-        <div class="target">目标：<b>24</b></div>
+        <div class="game-stats">
+          <div class="target">目标 <b>24</b></div>
+          <div class="win-badge"><span class="trophy">🏆</span> 胜场 <b id="winCount">0</b></div>
+        </div>
         <div class="cards" id="cards" data-count="4"></div>
         <div class="ops">
           <button class="op op-plus" data-op="+">+</button>
@@ -588,6 +637,7 @@
   var initialNums = [];
   var animating = false;
   var focusIndex = -1;
+  var wins = 0;
 
   // ================= 音效（Web Audio 合成，无需音频文件） =================
   var audioCtx = null;
@@ -763,6 +813,16 @@
     });
   }
 
+  function updateWins(bump) {
+    var elm = el("winCount");
+    elm.textContent = wins;
+    if (bump) {
+      elm.classList.remove("bump");
+      void elm.offsetWidth;
+      elm.classList.add("bump");
+    }
+  }
+
   function moveFocus(dir) {
     if (!state.cards.length) return;
     if (focusIndex < 0) {
@@ -929,6 +989,8 @@
 
   function showWin(expr) {
     playWin();
+    wins++;
+    updateWins(true);
     confetti();
     showModal({
       title: "🎉 通关！",
@@ -951,6 +1013,8 @@
 
   function surrender() {
     playSurrender();
+    wins = 0;
+    updateWins(false);
     var sols = solve24(initialNums);
     var html;
     if (!sols.length) {
