@@ -1064,6 +1064,8 @@
 
   function solve() {
     playTap();
+    wins = 0;
+    updateWins(false);
     var sol = el("solution");
     var nums = readInputs();
     if (!nums) {
@@ -1099,10 +1101,6 @@
 
   function switchTab(mode) {
     playTap();
-    if (mode === "solve") {
-      wins = 0;
-      updateWins(false);
-    }
     document.querySelectorAll(".tab").forEach(function (t) {
       t.classList.toggle("active", t.dataset.mode === mode);
     });
