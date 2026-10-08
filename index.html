@@ -1099,6 +1099,10 @@
 
   function switchTab(mode) {
     playTap();
+    if (mode === "solve") {
+      wins = 0;
+      updateWins(false);
+    }
     document.querySelectorAll(".tab").forEach(function (t) {
       t.classList.toggle("active", t.dataset.mode === mode);
     });
